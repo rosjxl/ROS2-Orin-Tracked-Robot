@@ -25,7 +25,7 @@ A high-performance tracked mobile robot built from scratch. Powered by Nvidia Or
 > **Dev Note (Day 0):** > The system has successfully passed the bench suspension test. SSH connection between the host PC and Orin board is stable. Waiting for full battery charge before initiating physical ground testing.
 
 ## Current Project Status
-Currently in Phase 1: Hardware integration and initial system deployment.
+Phase 1: Hardware integration and initial system deployment.
 
 -  Hardware assembly and wiring validation
 -  Network configuration (SSH & static IP binding)
