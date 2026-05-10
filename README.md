@@ -12,8 +12,7 @@ A high-performance tracked mobile robot built from scratch. Powered by Nvidia Or
 * **Robotics & Control:** ROS 2 (Humble) | Nav2 | PID Control | Kinematics
 * **AI & Vision (Planned):** YOLOv8 | PyTorch | Nvidia TensorRT | OpenCV
 
-## Current Project Status
-Currently in Phase 1: Hardware integration and initial system deployment.
+## Project Status
 
 -  Hardware assembly and wiring validation
 -  Network configuration (SSH & static IP binding)
