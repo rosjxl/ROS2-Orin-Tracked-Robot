@@ -1,4 +1,4 @@
-# Embodied AI Tracked Robot (Graduation Project)
+# Embodied AI Tracked Robot 
 
 A high-performance tracked mobile robot built from scratch. Powered by Nvidia Orin Nano for edge AI computing and STM32 for low-level motor control, running on the ROS 2 ecosystem.
 
