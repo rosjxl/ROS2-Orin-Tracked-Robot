@@ -37,7 +37,7 @@ Phase 1: Hardware integration and initial system deployment.
 -  Phase 4: Autonomous navigation (Nav2) and YOLO deployment
 
 
-## Phase 3: AI Vision & Target Detection (AI视觉与目标检测部署)
+## Phase 3: AI Vision & Target Detection
 Status: Successfully Deployed
 Hardware: Nvidia Orin Core & Astra RGB-D Camera
 Algorithm: YOLOv8n (Ultralytics) running on ROS2 Humble
