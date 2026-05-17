@@ -133,3 +133,56 @@ Terminal 3: Visualization & QoS Configuration
 rviz2
 
 ```
+Build & Deployment Instructions
+
+1. Create the Package:
+
+```bash
+cd ~/wheeltec_ros2/src
+ros2 pkg create --build-type ament_cmake disease_locator --dependencies rclcpp sensor_msgs vision_msgs cv_bridge image_transport
+
+```
+
+2. Configure `CMakeLists.txt`:
+(Add the following immediately above `if(BUILD_TESTING)`)
+
+```cmake
+find_package(cv_bridge REQUIRED)
+
+add_executable(locator_node src/locator_node.cpp)
+ament_target_dependencies(locator_node rclcpp sensor_msgs vision_msgs cv_bridge image_transport)
+
+install(TARGETS
+  locator_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+```
+
+3. Compile and Run:
+
+```bash
+cd ~/wheeltec_ros2
+colcon build --packages-select disease_locator
+source install/setup.bash
+ros2 run disease_locator locator_node
+
+```
+
+Performance Diagnostic Report: Message Accumulation (Buffer Bloat)
+
+ Symptom Observed
+
+During real-time physical testing, a significant latency ("ghosting effect") was observed. When the target (tea disease image) was removed from the camera's physical field of view, the node continued to output `TARGET LOCKED` coordinates for several seconds before halting.
+
+ Root Cause Analysis
+
+1. Frame Rate Asymmetry: The raw Astra camera publishes high-frequency RGBD streams (~30 FPS), while the edge-deployed YOLOv8 inference engine processes frames at a lower frequency (e.g., 5-15 FPS) due to compute constraints.
+2. DDS Queue Congestion: The ROS2 subscriber queue (History QoS) defaults to allowing un-processed frames to accumulate. Instead of dropping stale frames, the system forces the YOLO node to sequentially process "historical" images sitting in the buffer, causing severe pipeline lag.
+
+ Next Optimization Steps (Action Plan)
+
+* QoS Queue Reduction: Force a strict `Keep Last` history policy with a depth of `1` or `Best Effort` reliability to automatically drop outdated frames.
+* Exact Time Synchronization: Implement `message_filters::sync_policies` to securely bind 2D bounding box timestamps with the exact corresponding depth image matrices.
+
+```
