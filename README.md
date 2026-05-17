@@ -98,3 +98,38 @@ To prevent image starvation caused by ROS2 DDS (Data Distribution Service) polic
 Reliability Policy: Set to `Best Effort`
 Durability Policy: Set to `Volatile`
 
+
+markdown
+Autonomous Tea Disease Inspection Robot (Visual Perception Module)
+
+ Project Overview
+This repository contains the visual perception module for an autonomous agricultural inspection robot. It integrates a custom-trained YOLOv8 object detection model into a ROS2 framework, deployed natively on an edge computing platform.
+
+ Core Achievements & Technical Highlights
+Local Native Training: Bypassed cloud API limitations by natively training the dataset on a local GPU, extracting pure `.pt` weights for seamless physical deployment.
+ROS2 Topic Remapping: Successfully bridged the Astra RGBD camera stream with the YOLO detection node using precise ROS2 command-line remapping.
+QoS Optimization: Overcame strict ROS2 communication barriers by resolving reliability and durability mismatches, ensuring real-time video processing.
+
+ Quick Start & Deployment Instructions
+
+To replicate the visual perception pipeline, open three separate terminal sessions and source the ROS2 workspace in each: `source ~/wheeltec_ros2/install/setup.bash`
+
+Terminal 1: Initialize the Camera Stream
+```bash
+ros2 launch turn_on_wheeltec_robot wheeltec_camera.launch.py
+
+```
+
+Terminal 2: Deploy the YOLOv8 Detection Nod
+
+```bash
+ros2 run ultralytics_ros2 detection_node --ros-args -p model:=/home/wheeltec/best.pt --remap /camera/image_raw:=/camera/color/image_raw
+
+```
+
+Terminal 3: Visualization & QoS Configuration
+
+```bash
+rviz2
+
+```
