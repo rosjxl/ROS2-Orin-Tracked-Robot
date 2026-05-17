@@ -1,1 +1,84 @@
+markdown
+# Technical Documentation: 3D Disease Localization Node & Performance Diagnostics
+
+This document records the deployment process of the native C++ 3D localization node (`disease_locator`) and the diagnostic analysis of the message accumulation (Buffer Bloat) issue encountered during real-time testing.
+
+---
+
+ 1. Module Overview
+The `disease_locator` package is a native C++ ROS2 node designed to bridge 2D computer vision bounding boxes with physical 3D spatial coordinates using an Astra RGBD camera. 
+
+* **Subscribed Topics:**
+  * `/detections` (`vision_msgs/msg/Detection2DArray`): Provides 2D bounding box center pixel coordinates $(u, v)$ from the YOLOv8 inference node.
+  * `/camera/depth/image_raw` (`sensor_msgs/msg/Image`): Provides the raw depth matrix mapping pixels to real-world distances.
+
+---
+
+ 2. Core Source Code (`locator_node.cpp`)
+
+```cpp
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <vision_msgs/msg/detection2_d_array.hpp>
+#include <cv_bridge/cv_bridge.h>
+
+class DiseaseLocator : public rclcpp::Node {
+public:
+    DiseaseLocator() : Node("disease_locator_node") {
+        depth_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+            "/camera/depth/image_raw", rclcpp::SensorDataQoS(),
+            std::bind(&DiseaseLocator::depth_callback, this, std::placeholders::_1));
+
+        detect_sub_ = this->create_subscription<vision_msgs::msg::Detection2DArray>(
+            "/detections", 10,
+            std::bind(&DiseaseLocator::detect_callback, this, std::placeholders::_1));
+
+        RCLCPP_INFO(this->get_logger(), "Disease Locator Node Initialized! Awaiting data...");
+    }
+
+private:
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_sub_;
+    rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr detect_sub_;
+    cv_bridge::CvImagePtr cv_depth_ptr_;
+
+    void depth_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+        try {
+            cv_depth_ptr_ = cv_bridge::toCvCopy(msg, msg->encoding);
+        } catch (cv_bridge::Exception& e) {
+            RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        }
+    }
+
+    void detect_callback(const vision_msgs::msg::Detection2DArray::SharedPtr msg) {
+        if (!cv_depth_ptr_) return; 
+
+        for (const auto& detection : msg->detections) {
+            int u = static_cast<int>(detection.bbox.center.position.x);
+            int v = static_cast<int>(detection.bbox.center.position.y);
+
+            if (u >= 0 && u < cv_depth_ptr_->image.cols && v >= 0 && v < cv_depth_ptr_->image.rows) {
+                float depth_val = 0.0;
+                
+                if (cv_depth_ptr_->image.type() == CV_16UC1) {
+                    depth_val = cv_depth_ptr_->image.at<uint16_t>(v, u) / 1000.0; 
+                } else if (cv_depth_ptr_->image.type() == CV_32FC1) {
+                    depth_val = cv_depth_ptr_->image.at<float>(v, u);
+                }
+
+                if (depth_val > 0.0) {
+                    RCLCPP_INFO(this->get_logger(), 
+                        "TARGET LOCKED | Pixel (x:%d, y:%d) -> Physical Distance Z: %.3f meters", 
+                        u, v, depth_val);
+                }
+            }
+        }
+    }
+};
+
+int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<DiseaseLocator>());
+    rclcpp::shutdown();
+    return 0;
+}
 
