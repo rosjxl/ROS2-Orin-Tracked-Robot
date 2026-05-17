@@ -62,4 +62,39 @@ ROS2 Topic Remapping: Successfully bridged the Astra RGBD camera stream (`/camer
 QoS (Quality of Service) Optimization: Overcame strict ROS2 communication barriers by resolving reliability and durability mismatches. Configured the detection node and RViz2 visualization tool to utilize `Best Effort` and `Volatile` policies, ensuring zero-latency real-time video processing.
 
  Deployment & Launch Instructions
-(Here we will list the 3 terminal commands we used today)
+Here we will list the 3 terminal commands we used today
+
+ Deployment & Launch Instructions
+
+To replicate the visual perception pipeline, open three separate terminal sessions on the edge device and source the ROS2 workspace in each:
+`source ~/wheeltec_ros2/install/setup.bash`
+
+ Terminal 1: Initialize the Camera Stream
+Launch the Astra RGBD camera node to publish the raw image topics.
+```bash
+ros2 launch turn_on_wheeltec_robot wheeltec_camera.launch.py
+
+```
+Terminal 2: Deploy the YOLOv8 Detection Node
+
+Run the core detection node. This command loads the locally trained `best.pt` custom weights and uses `--remap` to correctly bridge the hardware camera topic with the neural network's input interface.
+
+```bash
+ros2 run ultralytics_ros2 detection_node --ros-args -p model:=/home/wheeltec/best.pt --remap /camera/image_raw:=/camera/color/image_raw
+
+```
+Terminal 3: Visualization & QoS Configuration
+
+Launch RViz2 to verify the bounding boxes and real-time inference results.
+
+```bash
+rviz2
+
+```
+
+Critical QoS Configurations in RViz2:
+To prevent image starvation caused by ROS2 DDS (Data Distribution Service) policy mismatches between the edge node and the visualization tool, you MUST manually configure the `/detected_image` topic settings in RViz2:
+
+Reliability Policy: Set to `Best Effort`
+Durability Policy: Set to `Volatile`
+
