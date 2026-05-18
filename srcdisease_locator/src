@@ -1,0 +1,95 @@
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/image.hpp>
+#include <vision_msgs/msg/detection2_d_array.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <tf2_ros/transform_listener.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <geometry_msgs/msg/point_stamped.hpp>
+
+class DiseaseLocator : public rclcpp::Node {
+public:
+    DiseaseLocator() : Node("disease_locator_node"), 
+                       tf_buffer_(this->get_clock()), 
+                       tf_listener_(tf_buffer_) {
+        // 订阅深度图像
+        depth_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+            "/camera/depth/image_raw", rclcpp::SensorDataQoS(),
+            std::bind(&DiseaseLocator::depth_callback, this, std::placeholders::_1));
+
+        // 订阅 YOLO 识别结果
+        detect_sub_ = this->create_subscription<vision_msgs::msg::Detection2DArray>(
+            "/detections", 10,
+            std::bind(&DiseaseLocator::detect_callback, this, std::placeholders::_1));
+
+        RCLCPP_INFO(this->get_logger(), "TF 3D Spatial Radar Online! Waiting for targets...");
+    }
+
+private:
+    rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr depth_sub_;
+    rclcpp::Subscription<vision_msgs::msg::Detection2DArray>::SharedPtr detect_sub_;
+    cv_bridge::CvImagePtr cv_depth_ptr_;
+    
+    // TF2 核心引擎声明
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;
+
+    void depth_callback(const sensor_msgs::msg::Image::SharedPtr msg) {
+        try {
+            cv_depth_ptr_ = cv_bridge::toCvCopy(msg, msg->encoding);
+        } catch (cv_bridge::Exception& e) {
+            // 忽略报错以保持高速运转
+        }
+    }
+
+    void detect_callback(const vision_msgs::msg::Detection2DArray::SharedPtr msg) {
+        if (!cv_depth_ptr_) return;
+
+        for (const auto& detection : msg->detections) {
+            int u = static_cast<int>(detection.bbox.center.position.x);
+            int v = static_cast<int>(detection.bbox.center.position.y);
+
+            if (u >= 0 && u < cv_depth_ptr_->image.cols && v >= 0 && v < cv_depth_ptr_->image.rows) {
+                float depth_val = 0.0;
+                if (cv_depth_ptr_->image.type() == CV_16UC1) {
+                    depth_val = cv_depth_ptr_->image.at<uint16_t>(v, u) / 1000.0; 
+                } else if (cv_depth_ptr_->image.type() == CV_32FC1) {
+                    depth_val = cv_depth_ptr_->image.at<float>(v, u);
+                }
+
+                if (depth_val > 0.0) {
+                    // 1. 构建相机坐标系下的 3D 散点
+                    geometry_msgs::msg::PointStamped point_camera;
+                    // 👇👇👇 特种兵，把下面这个改成你查到的代号 (比如 "camera_depth_optical_frame") 👇👇👇
+                    point_camera.header.frame_id = "YOUR_CAMERA_FRAME_ID"; 
+                    point_camera.header.stamp = this->get_clock()->now();
+                    
+                    // 利用标准相机内参，将 2D 像素反投影为真实 3D 空间坐标
+                    float cx = 320.0, cy = 240.0, fx = 500.0, fy = 500.0;
+                    point_camera.point.x = (u - cx) * depth_val / fx;
+                    point_camera.point.y = (v - cy) * depth_val / fy;
+                    point_camera.point.z = depth_val;
+
+                    // 2. 启动 TF 空间跳跃引擎，将坐标强制转换为小车底盘中心坐标 (base_footprint)
+                    try {
+                        geometry_msgs::msg::PointStamped point_base;
+                        point_base = tf_buffer_.transform(point_camera, "base_footprint", tf2::durationFromSec(1.0));
+                        
+                        RCLCPP_INFO(this->get_logger(), 
+                            "TARGET TF LOCKED | 相对底盘中心 -> 前方 X: %.2fm, 侧方 Y: %.2fm, 高度 Z: %.2fm", 
+                            point_base.point.x, point_base.point.y, point_base.point.z);
+                    } catch (const tf2::TransformException & ex) {
+                        RCLCPP_WARN(this->get_logger(), "TF 跳跃蓄能中... 暂时找不到底盘骨架...");
+                    }
+                }
+            }
+        }
+    }
+};
+
+int main(int argc, char** argv) {
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<DiseaseLocator>());
+    rclcpp::shutdown();
+    return 0;
+}
