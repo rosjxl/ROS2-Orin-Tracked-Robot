@@ -1,5 +1,5 @@
 markdown
-# Technical Documentation: 3D Disease Localization Node & Performance Diagnostics
+ Technical Documentation: 3D Disease Localization Node & Performance Diagnostics
 
 This document records the deployment process of the native C++ 3D localization node (`disease_locator`) and the diagnostic analysis of the message accumulation (Buffer Bloat) issue encountered during real-time testing.
 
@@ -8,7 +8,7 @@ This document records the deployment process of the native C++ 3D localization n
  1. Module Overview
 The `disease_locator` package is a native C++ ROS2 node designed to bridge 2D computer vision bounding boxes with physical 3D spatial coordinates using an Astra RGBD camera. 
 
-* **Subscribed Topics:**
+  * Subscribed Topics:
   * `/detections` (`vision_msgs/msg/Detection2DArray`): Provides 2D bounding box center pixel coordinates $(u, v)$ from the YOLOv8 inference node.
   * `/camera/depth/image_raw` (`sensor_msgs/msg/Image`): Provides the raw depth matrix mapping pixels to real-world distances.
 
