@@ -94,3 +94,8 @@ python3 ~/wheeltec_ros2/install/ultralytics_ros2/lib/ultralytics_ros2/detection_
 During real-time validation, targets placed extremely close to the lens (< 0.4 meters) resulted in distance dropouts.
 
 Diagnosis & Resolution: This is identified as the physical minimum range limit (blind spot) of the Astra infrared structured-light emitter. The C++ node logic if(depth_val > 0.0) successfully intercepts these invalid readings, ensuring that only zero-latency, highly accurate spatial coordinates are published when the target is within the optimal operational range(> 0.5m)
+
+TF2 Spatial Tree Troubleshooting
+Issue: `Tf has two or more unconnected trees`
+During the spatial deprojection phase, attempting to create a static transform directly between `base_footprint` and `camera_depth_optical_frame` violated ROS2 kinematic tree rules (a node cannot have multiple parents).
+Resolution: Corrected the static TF publisher to target the sensor's root link (`camera_link`). The transform chain is now successfully established as: `base_footprint` -> `camera_link` -> ... -> `camera_depth_optical_frame`. The C++ locator node can now output absolute X/Y/Z physical coordinates relative to the chassis center with zero latency.
