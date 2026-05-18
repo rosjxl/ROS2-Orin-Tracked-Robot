@@ -185,4 +185,4 @@ During real-time physical testing, a significant latency ("ghosting effect") was
 * QoS Queue Reduction: Force a strict `Keep Last` history policy with a depth of `1` or `Best Effort` reliability to automatically drop outdated frames.
 * Exact Time Synchronization: Implement `message_filters::sync_policies` to securely bind 2D bounding box timestamps with the exact corresponding depth image matrices.
 
-```
+* 3D Spatial Unification (TF2 Integration): Successfully integrated the ROS2 TF2 coordinate transform engine to perform real-time deprojection of 2D pixel coordinates. It automatically converts these into absolute 3D physical coordinates relative to the chassis center (`base_footprint`), providing precise, millimeter-level navigation data for the autonomous targeting and inspection operations.
