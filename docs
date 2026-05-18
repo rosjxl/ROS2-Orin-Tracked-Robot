@@ -82,3 +82,15 @@ int main(int argc, char** argv) {
     return 0;
 }
 
+ Deployment Workarounds & Environment Management
+
+ Issue 1: Environment Hijacking by ROS2 Build System
+When compiling the YOLO package within an Anaconda virtual environment (`wheeltec`), `colcon build` statically writes the default system Python path (`/usr/bin/python3`) into the executable's shebang. This causes a `ModuleNotFoundError` when using `ros2 run`, as it escapes the Conda environment.
+ Solution (Direct Execution): Bypass the `ros2 run` wrapper and directly invoke the compiled node using the Conda environment's Python engine:
+```bash
+python3 ~/wheeltec_ros2/install/ultralytics_ros2/lib/ultralytics_ros2/detection_node --ros-args -p model:=/home/wheeltec/best.pt --remap /camera/image_raw:=/camera/color/image_raw
+
+ Issue 2: RGBD Sensor Hardware Blind Spot
+During real-time validation, targets placed extremely close to the lens (< 0.4 meters) resulted in distance dropouts.
+
+Diagnosis & Resolution: This is identified as the physical minimum range limit (blind spot) of the Astra infrared structured-light emitter. The C++ node logic if(depth_val > 0.0) successfully intercepts these invalid readings, ensuring that only zero-latency, highly accurate spatial coordinates are published when the target is within the optimal operational range(> 0.5m)
