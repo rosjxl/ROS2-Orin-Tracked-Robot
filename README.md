@@ -186,3 +186,5 @@ During real-time physical testing, a significant latency ("ghosting effect") was
 * Exact Time Synchronization: Implement `message_filters::sync_policies` to securely bind 2D bounding box timestamps with the exact corresponding depth image matrices.
 
 * 3D Spatial Unification (TF2 Integration): Successfully integrated the ROS2 TF2 coordinate transform engine to perform real-time deprojection of 2D pixel coordinates. It automatically converts these into absolute 3D physical coordinates relative to the chassis center (`base_footprint`), providing precise, millimeter-level navigation data for the autonomous targeting and inspection operations.
+
+*  Visual Servoing & Chassis Control (视觉伺服与底盘联动):** Successfully closed the loop between machine vision and physical motor control. The system dynamically calculates angular and linear velocities based on 3D coordinates derived from YOLO and the depth camera. It features an integrated ABS-level environmental monitoring logic that triggers a zero-latency emergency stop upon target loss or reaching the 30cm operational limit, ensuring hardware safety.
