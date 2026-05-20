@@ -188,3 +188,58 @@ During real-time physical testing, a significant latency ("ghosting effect") was
 * 3D Spatial Unification (TF2 Integration): Successfully integrated the ROS2 TF2 coordinate transform engine to perform real-time deprojection of 2D pixel coordinates. It automatically converts these into absolute 3D physical coordinates relative to the chassis center (`base_footprint`), providing precise, millimeter-level navigation data for the autonomous targeting and inspection operations.
 
 *  Visual Servoing & Chassis Control Successfully closed the loop between machine vision and physical motor control. The system dynamically calculates angular and linear velocities based on 3D coordinates derived from YOLO and the depth camera. It features an integrated ABS-level environmental monitoring logic that triggers a zero-latency emergency stop upon target loss or reaching the 30cm operational limit, ensuring hardware safety.
+
+
+Final line-up: 1.Chassis Master Control Wake‑up
+```
+source ~/wheeltec_ros2/install/setup.bash
+ros2 launch turn_on_wheeltec_robot turn_on_wheeltec_robot.launch.py
+ ```
+
+2.Awaken the Depth Eye
+```
+source ~/wheeltec_ros2/install/setup.bash
+ros2 launch turn_on_wheeltec_robot wheeltec_camera.launch.py
+```
+
+3.Deploy YOLO Vision Neural Network
+```
+source ~/anaconda3/bin/activate wheeltec
+source ~/wheeltec_ros2/install/setup.bash
+python3 ~/wheeltec_ros2/install/ultralytics_ros2/lib/ultralytics_ros2/detection_node --ros-args -p model:=/home/wheeltec/best.pt -p conf:=0.6 --remap /camera/image_raw:=/camera/color/image_raw
+```
+
+4.Set Up the TF Spatial Skybridge
+```
+source ~/wheeltec_ros2/install/setup.bash
+ros2 run tf2_ros static_transform_publisher 0.2 0.0 0.3 0 0 0 base_footprint camera_link
+```
+
+5.Inject the C++ Control and Data Logging Brainstem
+```
+source ~/wheeltec_ros2/install/setup.bash
+ros2 run disease_locator locator_node
+```
+
+Key Features:
+
+Multi‑modal Data Fusion (3D Matrix Projection):  
+Using the pinhole camera model, the 2D pixel coordinates \((u, v)\) extracted by YOLO are fused with the corresponding depth value (Depth) and back‑projected to generate a 3D point in the camera coordinate system. The point is then projected in real time to the chassis physical coordinate system through TF2 tree matrix transformation.  
+
+IFF Defense Line (IFF Class Filtering):  
+The node integrates a strict filtering mechanism. The trigger is activated only when the class ID of the detection topic exactly matches the custom disease (`class_id == "0"`), completely shielding false‑positive interference from complex backgrounds such as faces, phones, and foreign objects.  
+
+Safety Killer Threshold and Battlefield Black Box (Inspection Logger):  
+- Chasing phase: When the distance to the target is > 0.35 m, the system publishes speed commands to guide the robot to approach steadily.  
+- Killer record: When the distance to the target is ≤ 0.35 m, the chassis performs emergency braking (brake). Simultaneously, it triggers a file stream lock and, under a 5‑second cooling protection (to prevent data bursts), automatically appends an inspection report (`Inspection_Log.csv`) containing [absolute timestamp, X coordinate, Y coordinate, Z coordinate] to the local hard disk.
+
+
+In real bench‑scale vehicle tests and physical image‑guided trials, the entire pipeline demonstrated extremely high perception‑control convergence speed. However, under complex laboratory/field backgrounds, the system encountered the following technical challenges, which have now been consolidated into core outcomes of the system’s robustness design:
+
+Topic Mismatch:  
+In the early integration phase, all nodes were alive but the system remained silent. Using the hacker‑grade command `ros2 topic echo` to capture the underlying inter‑com channels, it was discovered that the vision publisher and the control subscriber were misaligned on the topics `/detections` and `/yolo_detections`. This communication mismatch has now been corrected by a source‑level surgical adjustment that unifies both sides onto the standard frequency band.
+
+False Positive Suppression:  
+Because the negative samples in the custom dataset were limited during early training, the AI tended to over‑generalise and misclassify objects with similar shapes or textures (e.g., facial contours) as true targets. This project resolved the issue with a two‑pronged defence tactic:
+- The confidence threshold of the vision node was forcibly raised to `conf:=0.6` to filter out low‑probability noise.
+- A category conditional branch was deeply nested in the C++ motion kernel to completely discard empty IDs and non‑target bounding boxes.
